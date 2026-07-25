@@ -66,7 +66,7 @@ label.kop-slot{aspect-ratio:5/1}
 .toast.err{border-color:#f85149;color:#f85149}
 /* A4 document */
 #doc-preview{width:210mm;min-height:297mm;background:white;color:#111;padding:1.5cm 2cm;margin:0 auto;font-family:'Times New Roman',serif;line-height:1.5;box-shadow:0 24px 80px rgba(0,0,0,.6);border-radius:4px}
-/* Dipakai sementara saat generate PDF utk fitur Bagikan: margin diatur lewat opsi html2pdf, bukan padding div ini, agar tidak dobel dan konsisten di semua halaman */
+/* Margin PDF (Bagikan) sekarang mengikuti padding bawaan div ini (1.5cm 2cm) — opsi margin html2pdf diset 0 */
 #doc-preview.export-mode{box-shadow:none!important;border-radius:0!important}
 .doc-sec-title{font-weight:bold;margin-bottom:6px;text-align:left}
 .doc-sec{margin-bottom:14px;page-break-inside:avoid;break-inside:avoid}
@@ -734,22 +734,22 @@ window.shareReport=async()=>{
   // document.title / metadata judul PDF, bukan hanya File.name — samakan semuanya.
   const prevTitle=document.title;
   document.title=judul;
-  // Nonaktifkan padding bawaan #doc-preview saat capture, karena margin halaman
-  // pada file yang dibagikan diatur lewat opsi "margin" html2pdf di bawah (seragam per halaman).
+  // export-mode: hilangkan shadow/radius saat capture (padding div dibiarkan apa adanya, jadi margin PDF)
   inner.classList.add("export-mode");
 
   try{
     if(typeof html2pdf==="undefined") throw new Error("html2pdf tidak tersedia");
 
     // Render ke PDF blob dari elemen pratinjau A4
-    // margin [atas,kiri,bawah,kanan] mm — seragam di semua halaman (batasan teknis html2pdf/html2canvas
-    // yang men-slice satu canvas panjang, sehingga margin berbeda per-halaman tidak didukung di jalur ini).
+    // margin diset 0 -> margin PDF sepenuhnya berasal dari padding CSS #doc-preview (1.5cm 2cm)
+    // windowWidth dipaksa = lebar asli #doc-preview, agar html2canvas TIDAK mengikuti lebar jendela
+    // browser/HP saat ini (default-nya begitu) — itu penyebab sisi kanan halaman selalu terpotong.
     const worker=html2pdf()
       .set({
         margin:0,
         filename:fileName,
         image:{type:"jpeg",quality:0.95},
-        html2canvas:{scale:2,useCORS:true,backgroundColor:"#ffffff"},
+        html2canvas:{scale:2,useCORS:true,backgroundColor:"#ffffff",windowWidth:inner.scrollWidth,width:inner.scrollWidth},
         jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
         pagebreak:{mode:["css","legacy"]}
       })
