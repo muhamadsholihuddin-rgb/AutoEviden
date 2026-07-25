@@ -67,7 +67,7 @@ label.kop-slot{aspect-ratio:5/1}
 /* A4 document */
 #doc-preview{width:210mm;min-height:297mm;background:white;color:#111;padding:1.5cm 2cm;margin:0 auto;font-family:'Times New Roman',serif;line-height:1.5;box-shadow:0 24px 80px rgba(0,0,0,.6);border-radius:4px}
 /* Dipakai sementara saat generate PDF utk fitur Bagikan: margin diatur lewat opsi html2pdf, bukan padding div ini, agar tidak dobel dan konsisten di semua halaman */
-#doc-preview.export-mode{padding:0!important;box-shadow:none!important;border-radius:0!important}
+#doc-preview.export-mode{box-shadow:none!important;border-radius:0!important}
 .doc-sec-title{font-weight:bold;margin-bottom:6px;text-align:left}
 .doc-sec{margin-bottom:14px;page-break-inside:avoid;break-inside:avoid}
 .doc-sec-body{margin-left:0}
@@ -746,15 +746,12 @@ window.shareReport=async()=>{
     // yang men-slice satu canvas panjang, sehingga margin berbeda per-halaman tidak didukung di jalur ini).
     const worker=html2pdf()
       .set({
-        margin:[10,15,15,15],
+        margin:0,
         filename:fileName,
         image:{type:"jpeg",quality:0.95},
         html2canvas:{scale:2,useCORS:true,backgroundColor:"#ffffff"},
         jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
-        // Catatan: mode "legacy" digabung dgn opsi margin numerik menyebabkan bug dari html2pdf.js
-        // (canvas ke-slice salah -> muncul halaman kosong & kop/konten tergeser turun 1 halaman).
-        // Mode "css" saja sudah cukup krn page-break-inside/after diatur lewat CSS (.doc-sec, dll).
-        pagebreak:{mode:["css"]}
+        pagebreak:{mode:["css","legacy"]}
       })
       .from(inner);
 
