@@ -97,6 +97,7 @@ label.kop-slot{aspect-ratio:5/1}
   /* Header: sembunyikan tab halaman & kontrol yang berat di layar kecil (digantikan bottom-nav) */
   #app-shell > header{padding:0 12px;gap:8px}
   #app-shell > header > div:nth-child(2){display:none!important}
+  #app-shell > header > div:first-child > div:last-child{display:none}
   #app-shell > header .btn-out,#app-shell > header .btn-gold{display:none!important}
   #app-shell > header .font-ctrl{display:none!important}
 
@@ -262,13 +263,12 @@ let S = {
   shareLoading: false,
   sidebar: true,
   profileGate: true,
-  desaList: [{nama:"",kelompok:["","","","",""]}],
   kop:null, ttd:null, f1:null, f2:null, f3:null,
   form:{
     nama:"", nip:"",
     jabatan:"Pengelola Layanan Operasional", kota:"Kediri",
     tgl_laporan:lastWorkday(), wilayah:"Kecamatan Gurah Kabupaten Kediri",
-    kegiatan:RHK[0].options[0], kelompok:"", desa:"", sasaran:"", tempat:"Rumah KPM",
+    kegiatan:RHK[0].options[0], kelompok:"", desa:"", sasaran:"", tempat:"",
     tgl_kegiatan:today(),
     umum:"",tujuan:"",narasi:"",hasil:"",
     ppse_nik:"3506187009840002",ppse_nama:"KASEMAN",ppse_usia:"41",
@@ -349,8 +349,7 @@ const IC = {
   chk:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`,
   up:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`,
   spin:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`,
-  share:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>`,
-  logo:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M8 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6H8z"/><path d="M14 3v5a1 1 0 0 0 1 1h5"/><path d="M8.5 13.5l2 2 4-4"/></svg>`
+  share:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>`
 };
 const ico = (k,s=14)=>`<span style="display:inline-flex;width:${s}px;height:${s}px;flex-shrink:0">${IC[k]}</span>`;
 
@@ -401,7 +400,7 @@ function loadPhotos(){
 loadPhotos(); // muat saat halaman dibuka
 
 // ── PROFIL PENGGUNA PERMANEN (localStorage) ──
-const PROFILE_KEYS = ["nama","nip","jabatan","kota","wilayah"];
+const PROFILE_KEYS = ["nama","nip","desa","kelompok"];
 function saveProfile(){
   try{
     const p={}; PROFILE_KEYS.forEach(k=>p[k]=S.form[k]||"");
@@ -416,31 +415,7 @@ function loadProfile(){
     return localStorage.getItem("autoreport_profile_done")==="1";
   }catch(e){ return false; }
 }
-// ── DESA DAMPINGAN (bisa lebih dari satu, tiap desa punya beberapa kelompok) ──
-function saveDesaList(){
-  try{ localStorage.setItem("autoreport_desalist", JSON.stringify(S.desaList||[])); }catch(e){}
-}
-function loadDesaList(){
-  try{
-    const raw=localStorage.getItem("autoreport_desalist");
-    if(raw){ const d=JSON.parse(raw); if(Array.isArray(d)&&d.length) S.desaList=d; }
-  }catch(e){}
-}
-function desaKelompokOptions(){
-  const out=[];
-  (S.desaList||[]).forEach(d=>{
-    if(!d.nama||!d.nama.trim()) return;
-    (d.kelompok||[]).forEach(k=>{ if(k&&k.trim()) out.push({desa:d.nama.trim(),kelompok:k.trim()}); });
-  });
-  return out;
-}
-loadDesaList();
 S.profileGate = !loadProfile(); // tampilkan gate hanya jika profil belum pernah disimpan
-// Setel desa & kelompok default laporan dari desa dampingan pertama yang tersimpan
-(function initDefaultDesa(){
-  const opts=desaKelompokOptions();
-  if(opts.length){ S.form.desa=opts[0].desa; S.form.kelompok=opts[0].kelompok; }
-})();
 
 window.completeProfileSetup=()=>{
   const f=S.form;
@@ -448,28 +423,12 @@ window.completeProfileSetup=()=>{
     showToast("Nama Lengkap dan NIP wajib diisi",true);
     return;
   }
-  // Buang baris desa kosong sebelum menyimpan
-  S.desaList=(S.desaList||[]).filter(d=>d.nama&&d.nama.trim());
-  if(!S.desaList.length) S.desaList=[{nama:"",kelompok:["","","","",""]}];
   saveProfile();
-  saveDesaList();
-  const opts=desaKelompokOptions();
-  if(opts.length && (!f.desa || !opts.some(o=>o.desa===f.desa&&o.kelompok===f.kelompok))){
-    S.form.desa=opts[0].desa; S.form.kelompok=opts[0].kelompok;
-  }
   S.profileGate=false;
   render();
   showToast("Profil tersimpan ✓");
 };
 window.openProfileGate=()=>{ S.profileGate=true; render(); };
-
-// ── HANDLER DESA & KELOMPOK DAMPINGAN (dinamis) ──
-window.addDesa=()=>{ S.desaList.push({nama:"",kelompok:["","","","",""]}); render(); };
-window.removeDesa=(i)=>{ S.desaList.splice(i,1); if(!S.desaList.length) S.desaList.push({nama:"",kelompok:["","","","",""]}); render(); };
-window.editDesaNama=(i,v)=>{ S.desaList[i].nama=v; };
-window.addKelompok=(i)=>{ S.desaList[i].kelompok.push(""); render(); };
-window.removeKelompok=(i,j)=>{ S.desaList[i].kelompok.splice(j,1); render(); };
-window.editKelompok=(i,j,v)=>{ S.desaList[i].kelompok[j]=v; };
 
 window.loadPhoto=(id,inp)=>{
   const f=inp.files[0]; if(!f) return;
@@ -637,15 +596,13 @@ window.exportWord=()=>{
 // ── FORMAT NAMA FILE ─────────────────────────
 function buildFileName(ext){
   const BULAN=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-  const HARI=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
   const nama=(S.form.nama||"Pendamping").trim();
   const rhkNo=S.rhk.no;
-  // parse tanggal kegiatan (format YYYY-MM-DD) -> Hari_Tgl_Bulan_Tahun
+  // parse tanggal kegiatan (format YYYY-MM-DD)
   let tglStr="";
   if(S.form.tgl_kegiatan){
     const [y,m,d]=S.form.tgl_kegiatan.split("-").map(Number);
-    const dt=new Date(y,m-1,d);
-    tglStr=`${HARI[dt.getDay()]}_${d}_${BULAN[m-1]}_${y}`;
+    tglStr=`${d} ${BULAN[m-1]} ${y}`;
   }
   // bersihkan karakter tidak valid untuk nama file
   const clean=s=>s.replace(/[/\\:*?"<>|]/g,"");
@@ -681,22 +638,10 @@ window.shareReport=async()=>{
 
   const finish=()=>{ S.shareLoading=false; render(); };
   const fileName=buildFileName("pdf");
-  const fileBase=fileName.replace(/\.pdf$/i,"");
-  // PENTING: beberapa aplikasi (mis. Google Drive) menamai file dari field
-  // "title" pesan share, BUKAN dari nama file PDF-nya. Judul disamakan
-  // dengan nama file agar hasilnya konsisten di semua aplikasi tujuan.
-  const judul=fileBase;
-  const caption=`Laporan RHK ${S.rhk.no} — ${S.form.nama||"Pendamping PKH"}`;
+  const judul=`Laporan RHK ${S.rhk.no} — ${S.form.nama||"Pendamping PKH"}`;
 
   try{
     if(typeof html2pdf==="undefined") throw new Error("html2pdf tidak tersedia");
-
-    // Paksa lebar capture setara A4 (210mm) dalam px, TIDAK mengikuti lebar layar HP.
-    // Ini memperbaiki bug html2canvas di HP yang memotong sisi kanan dokumen
-    // & membuat margin antar halaman tidak konsisten (default-nya ia memakai
-    // window.innerWidth layar, yang jauh lebih sempit dari 210mm).
-    const A4_PX = Math.round(210 * 96 / 25.4); // ≈ 794px @96dpi
-    const fullHeight = Math.max(inner.scrollHeight, inner.offsetHeight);
 
     // Render ke PDF blob dari elemen pratinjau A4
     const worker=html2pdf()
@@ -704,17 +649,7 @@ window.shareReport=async()=>{
         margin:0,
         filename:fileName,
         image:{type:"jpeg",quality:0.95},
-        html2canvas:{
-          scale:2,
-          useCORS:true,
-          backgroundColor:"#ffffff",
-          width:A4_PX,
-          windowWidth:A4_PX,
-          height:fullHeight,
-          windowHeight:fullHeight,
-          scrollX:0,
-          scrollY:0
-        },
+        html2canvas:{scale:2,useCORS:true,backgroundColor:"#ffffff"},
         jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
         pagebreak:{mode:["css","legacy"]}
       })
@@ -727,12 +662,12 @@ window.shareReport=async()=>{
       await navigator.share({
         files:[file],
         title:judul,
-        text:`${caption} — dibuat dengan AutoReport Pro.`
+        text:`${judul} — dibuat dengan AutoReport Pro.`
       });
       showToast("Laporan berhasil dibagikan ✓");
     } else if(navigator.share){
       // Perangkat tidak mendukung share file — bagikan sebagai teks & tetap unduh PDF-nya
-      await navigator.share({ title:judul, text:`${caption} — dibuat dengan AutoReport Pro.` });
+      await navigator.share({ title:judul, text:`${judul} — dibuat dengan AutoReport Pro.` });
       const a=document.createElement("a"); a.href=URL.createObjectURL(pdfBlob); a.download=fileName;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       showToast("PDF diunduh — silakan bagikan manual dari folder unduhan");
@@ -764,35 +699,8 @@ function renderProfileGate(){
 
       <div class="fld">
         ${inp("Nama Lengkap","nama")}
-        <div class="row2">${inp("NIP","nip")}${inp("Jabatan","jabatan")}</div>
-        <div class="row2">${inp("Kota","kota")}${inp("Wilayah Dampingan","wilayah")}</div>
-      </div>
-
-      <div class="divider"></div>
-
-      <div>
-        <div class="sec-hd" style="margin-bottom:10px;justify-content:space-between">
-          <span style="display:flex;align-items:center;gap:8px">${ico("map")} Desa Dampingan</span>
-          <button type="button" class="btn-ghost" onclick="addDesa()">${ico("chk",11)} Tambah Desa</button>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:10px">
-          ${(S.desaList||[]).map((d,i)=>`
-          <div style="background:#0d1117;border:1px solid var(--bd);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px">
-            <div style="display:flex;gap:8px;align-items:center">
-              <input type="text" placeholder="Nama Desa ${i+1}" value="${escAttr(d.nama)}" oninput="editDesaNama(${i},this.value)" style="flex:1"/>
-              <button type="button" onclick="removeDesa(${i})" style="background:none;border:1px solid var(--bd2);color:var(--txm);border-radius:8px;width:36px;height:36px;flex-shrink:0;cursor:pointer;font-size:16px">×</button>
-            </div>
-            <p class="lbl" style="margin:2px 0 0">Kelompok (isi 5–6 kelompok)</p>
-            <div style="display:flex;flex-direction:column;gap:6px">
-              ${(d.kelompok||[]).map((k,j)=>`
-              <div style="display:flex;gap:8px;align-items:center">
-                <input type="text" placeholder="Nama Kelompok ${j+1}" value="${escAttr(k)}" oninput="editKelompok(${i},${j},this.value)" style="flex:1"/>
-                <button type="button" onclick="removeKelompok(${i},${j})" style="background:none;border:1px solid var(--bd2);color:var(--txm);border-radius:8px;width:36px;height:36px;flex-shrink:0;cursor:pointer;font-size:16px">×</button>
-              </div>`).join("")}
-            </div>
-            <button type="button" class="btn-out" onclick="addKelompok(${i})" style="justify-content:center;margin-top:2px">${ico("chk",12)} Tambah Kelompok</button>
-          </div>`).join("")}
-        </div>
+        ${inp("NIP","nip")}
+        <div class="row2">${inp("Desa Dampingan","desa")}${inp("Kelompok","kelompok")}</div>
       </div>
 
       <div class="divider"></div>
@@ -827,7 +735,11 @@ function render(){
     <header style="height:56px;background:rgba(13,15,17,.96);border-bottom:1px solid var(--bd);padding:0 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:200;backdrop-filter:blur(16px)">
       <div style="display:flex;align-items:center;gap:10px">
         <button onclick="toggleSB()" style="background:none;border:none;color:var(--txm);cursor:pointer;display:flex;padding:6px;border-radius:6px">${ico("menu",20)}</button>
-        <div style="width:32px;height:32px;background:linear-gradient(135deg,var(--gold),#8a5c10);border-radius:8px;display:flex;align-items:center;justify-content:center">${ico("logo",17)}</div>
+        <div style="width:32px;height:32px;background:linear-gradient(135deg,var(--gold),#8a5c10);border-radius:8px;display:flex;align-items:center;justify-content:center">${ico("pdf",16)}</div>
+        <div>
+          <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:15px">AutoReport <span style="color:var(--gold)">Pro</span></div>
+          <div style="font-size:9px;color:var(--txm);letter-spacing:.14em;text-transform:uppercase">Smart Adaptive RHK · v38</div>
+        </div>
       </div>
       <div style="display:flex;gap:3px;background:var(--surf);border:1px solid var(--bd);border-radius:10px;padding:3px">
         ${pageTab("edit","Edit")}${pageTab("preview","Pratinjau")}${pageTab("rhk","Daftar RHK")}
@@ -838,9 +750,13 @@ function render(){
           <input type="range" min="8" max="16" step=".5" value="${S.fontSize}" oninput="S.fontSize=parseFloat(this.value);render()" style="width:70px"/>
           <span style="font-size:11px;color:var(--gold);font-weight:700;min-width:28px">${S.fontSize}pt</span>
         </div>
-        <button class="btn-out" onclick="openProfileGate()" title="Profil" style="padding:8px;width:36px;height:36px;justify-content:center">${ico("user",16)}</button>
-        <button class="btn-gold" onclick="shareReport()" ${S.shareLoading?"disabled":""}>
-          ${S.shareLoading?`<span class="spin-ico">${IC.spin}</span> Menyiapkan…`:`${ico("share",14)} Bagikan`}
+        <button class="btn-out" onclick="openProfileGate()">${ico("user")} Profil</button>
+        <button class="btn-out" onclick="exportWord()">${ico("word")} Word</button>
+        <button class="btn-ghost" onclick="shareReport()" ${S.shareLoading?"disabled":""}>
+          ${S.shareLoading?`<span class="spin-ico">${IC.spin}</span>`:ico("share",13)} Bagikan
+        </button>
+        <button class="btn-gold" onclick="exportPDF()" ${S.pdfLoading?"disabled":""}>
+          ${S.pdfLoading?`<span class="spin-ico">${IC.spin}</span> Memproses…`:`${ico("pdf")} Cetak PDF`}
         </button>
       </div>
     </header>
@@ -858,15 +774,19 @@ function render(){
           <button class="side-tab ${S.page==="rhk"?"active":""}" onclick="setPage('rhk')">${ico("grid")} Daftar RHK</button>
           <div class="divider"></div>
           <p style="font-size:9px;font-weight:700;color:var(--txm);text-transform:uppercase;letter-spacing:.14em;padding:4px 10px 8px">Bagian Form</p>
-          <button class="side-tab" onclick="openProfileGate()">${ico("user")} Profil</button>
+          ${sideTab("profil","Profil","user")}
           ${sideTab("rhk2","RHK","grid")}
           ${sideTab("lokasi","Lokasi","map")}
           ${sideTab("media","Media","img")}
           ${sideTab("narasi","Narasi","txt")}
           <div class="divider"></div>
-          <div style="padding:0 2px">
-            <button class="btn-gold" onclick="shareReport()" style="width:100%;justify-content:center" ${S.shareLoading?"disabled":""}>
-              ${S.shareLoading?`<span class="spin-ico">${IC.spin}</span> Menyiapkan…`:`${ico("share",13)} Bagikan Laporan`}
+          <div style="padding:0 2px;display:flex;flex-direction:column;gap:8px">
+            <button class="btn-out" onclick="exportWord()" style="width:100%;justify-content:center">${ico("word",13)} Export Word</button>
+            <button class="btn-ghost" onclick="shareReport()" style="width:100%;justify-content:center" ${S.shareLoading?"disabled":""}>
+              ${S.shareLoading?`<span class="spin-ico">${IC.spin}</span>`:ico("share",13)} ${S.shareLoading?"Menyiapkan…":"Bagikan"}
+            </button>
+            <button class="btn-gold" onclick="exportPDF()" style="width:100%;justify-content:center" ${S.pdfLoading?"disabled":""}>
+              ${S.pdfLoading?`<span class="spin-ico">${IC.spin}</span>`:`${ico("pdf",13)}`} ${S.pdfLoading?"Memproses…":"Cetak PDF"}
             </button>
           </div>
         </div>
@@ -878,6 +798,17 @@ function render(){
         ${S.page==="edit"?`
         <!-- EDIT PAGE -->
         <div class="fi" style="width:100%;max-width:560px;display:flex;flex-direction:column;gap:16px">
+
+          <!-- PROFIL -->
+          <div id="sec-profil" class="card">
+            <div class="sec-hd">${ico("user")} Profil Pendamping</div>
+            <div class="fld">
+              ${inp("Nama Lengkap","nama")}
+              <div class="row2">${inp("NIP","nip")}${inp("Jabatan","jabatan")}</div>
+              <div class="row2">${inp("Kota","kota")}${inp("Tgl. Laporan","tgl_laporan")}</div>
+              ${inp("Wilayah Dampingan","wilayah")}
+            </div>
+          </div>
 
           <!-- RHK -->
           <div id="sec-rhk2" class="card">
@@ -925,19 +856,9 @@ function render(){
           <div id="sec-lokasi" class="card">
             <div class="sec-hd">${ico("map")} Lokasi & Waktu</div>
             <div class="fld">
-              ${(()=>{
-                const opts=desaKelompokOptions();
-                if(!opts.length){
-                  return `<div><label class="lbl">Desa & Kelompok Dampingan</label><p style="font-size:11px;color:var(--txm);background:#0d1117;border:1px solid var(--bd);border-radius:8px;padding:10px 12px">Belum ada desa dampingan. <a href="#" onclick="event.preventDefault();openProfileGate()" style="color:var(--gold)">Tambahkan lewat menu Profil</a>.</p></div>`;
-                }
-                const cur=`${f.desa}||${f.kelompok}`;
-                return `<div><label class="lbl">Desa & Kelompok Dampingan</label><div class="select-wrap"><select class="dk-sel">${opts.map(o=>{
-                  const v=`${o.desa}||${o.kelompok}`;
-                  return `<option value="${escAttr(v)}" ${cur===v?"selected":""}>${escHtml(o.desa)} — ${escHtml(o.kelompok)}</option>`;
-                }).join("")}</select></div></div>`;
-              })()}
+              ${rhk.no===2?`<div class="row2">${inp("Nama Kelompok","kelompok")}${inp("Nama Desa","desa")}</div>`:""}
               ${inp("Lokasi Spesifik","tempat")}
-              <div class="row2">${inp("Tanggal Kegiatan","tgl_kegiatan","date")}${inp("Tgl. Laporan","tgl_laporan")}</div>
+              ${inp("Tanggal Kegiatan","tgl_kegiatan","date")}
             </div>
           </div>
 
@@ -983,8 +904,12 @@ function render(){
               <p style="font-size:10px;color:var(--txm);margin-top:2px">RHK ${rhk.no}: ${rhk.title} · ${S.fontSize}pt</p>
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap">
-              <button class="btn-gold" onclick="shareReport()" ${S.shareLoading?"disabled":""}>
+              <button class="btn-out" onclick="exportWord()">${ico("word")} Word</button>
+              <button class="btn-ghost" onclick="shareReport()" ${S.shareLoading?"disabled":""}>
                 ${S.shareLoading?`<span class="spin-ico">${IC.spin}</span> Menyiapkan…`:`${ico("share")} Bagikan`}
+              </button>
+              <button class="btn-gold" onclick="exportPDF()" ${S.pdfLoading?"disabled":""}>
+                ${S.pdfLoading?`<span class="spin-ico">${IC.spin}</span> Memproses…`:`${ico("pdf")} Cetak PDF`}
               </button>
             </div>
           </div>
@@ -1029,8 +954,8 @@ function render(){
       <button onclick="setPage('edit')" style="display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;color:${S.page==="edit"?"var(--gold)":"var(--txm)"};padding:4px 8px">${ico("txt",20)}<span style="font-size:9px;font-weight:700;text-transform:uppercase">Edit</span></button>
       <button onclick="setPage('preview')" style="display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;color:${S.page==="preview"?"var(--gold)":"var(--txm)"};padding:4px 8px">${ico("eye",20)}<span style="font-size:9px;font-weight:700;text-transform:uppercase">Lihat</span></button>
       <button onclick="setPage('rhk')" style="display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;color:${S.page==="rhk"?"var(--gold)":"var(--txm)"};padding:4px 8px">${ico("grid",20)}<span style="font-size:9px;font-weight:700;text-transform:uppercase">RHK</span></button>
-      <button onclick="openProfileGate()" style="display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;color:var(--txm);padding:4px 8px">${ico("user",20)}<span style="font-size:9px;font-weight:700;text-transform:uppercase">Profil</span></button>
       <button onclick="shareReport()" style="display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;color:var(--gold);padding:4px 8px">${S.shareLoading?`<span class="spin-ico">${IC.spin}</span>`:ico("share",20)}<span style="font-size:9px;font-weight:700;text-transform:uppercase">Bagikan</span></button>
+      <button onclick="exportPDF()" style="display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;color:var(--gold);padding:4px 8px">${ico("pdf",20)}<span style="font-size:9px;font-weight:700;text-transform:uppercase">PDF</span></button>
     </nav>
 
   </div>
@@ -1063,10 +988,6 @@ function render(){
   });
   document.querySelector(".sesi-sel")?.addEventListener("change",e=>{
     S.sesi=e.target.value; autoNarrative(); render();
-  });
-  document.querySelector(".dk-sel")?.addEventListener("change",e=>{
-    const [desa,kelompok]=e.target.value.split("||");
-    S.form.desa=desa; S.form.kelompok=kelompok; autoNarrative(); render();
   });
 }
 
