@@ -67,11 +67,7 @@ label.kop-slot{aspect-ratio:5/1}
 /* A4 document */
 #doc-preview{width:210mm;min-height:297mm;background:white;color:#111;padding:1.5cm 2cm;margin:0 auto;font-family:'Times New Roman',serif;line-height:1.5;box-shadow:0 24px 80px rgba(0,0,0,.6);border-radius:4px}
 /* Dipakai sementara saat generate PDF utk fitur Bagikan: margin diatur lewat opsi html2pdf, bukan padding div ini, agar tidak dobel dan konsisten di semua halaman */
-/* Margin PDF (jalur Bagikan) diterapkan lewat padding CSS di sini, BUKAN lewat opsi margin html2pdf.
-   Alasan: #doc-preview lebar tetap 210mm dgn box-sizing:border-box, jadi padding tidak mengubah/menggeser
-   lebar total halaman -> teks tidak kepotong di sisi kanan. Opsi margin html2pdf sebelumnya menyebabkan
-   ini karena tidak menyesuaikan lebar capture dgn margin kiri/kanan. */
-#doc-preview.export-mode{padding:10mm 15mm 15mm 15mm!important;box-shadow:none!important;border-radius:0!important}
+#doc-preview.export-mode{padding:0!important;box-shadow:none!important;border-radius:0!important}
 .doc-sec-title{font-weight:bold;margin-bottom:6px;text-align:left}
 .doc-sec{margin-bottom:14px;page-break-inside:avoid;break-inside:avoid}
 .doc-sec-body{margin-left:0}
@@ -738,25 +734,27 @@ window.shareReport=async()=>{
   // document.title / metadata judul PDF, bukan hanya File.name — samakan semuanya.
   const prevTitle=document.title;
   document.title=judul;
-  // Ganti padding bawaan #doc-preview (utk layar) dgn padding margin PDF saat capture —
-  // lihat aturan #doc-preview.export-mode di <style> utk nilai margin yg dipakai.
+  // Nonaktifkan padding bawaan #doc-preview saat capture, karena margin halaman
+  // pada file yang dibagikan diatur lewat opsi "margin" html2pdf di bawah (seragam per halaman).
   inner.classList.add("export-mode");
 
   try{
     if(typeof html2pdf==="undefined") throw new Error("html2pdf tidak tersedia");
 
     // Render ke PDF blob dari elemen pratinjau A4
-    // Margin diatur lewat padding CSS pada .export-mode (lihat #doc-preview.export-mode di <style>),
-    // BUKAN lewat opsi "margin" html2pdf — opsi margin html2pdf tidak menyesuaikan lebar capture
-    // dengan margin kiri/kanan, sehingga sebelumnya teks di sisi kanan terpotong/terdorong keluar halaman.
+    // margin [atas,kiri,bawah,kanan] mm — seragam di semua halaman (batasan teknis html2pdf/html2canvas
+    // yang men-slice satu canvas panjang, sehingga margin berbeda per-halaman tidak didukung di jalur ini).
     const worker=html2pdf()
       .set({
-        margin:0,
+        margin:[10,15,15,15],
         filename:fileName,
         image:{type:"jpeg",quality:0.95},
         html2canvas:{scale:2,useCORS:true,backgroundColor:"#ffffff"},
         jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
-        pagebreak:{mode:["css","legacy"]}
+        // Catatan: mode "legacy" digabung dgn opsi margin numerik menyebabkan bug dari html2pdf.js
+        // (canvas ke-slice salah -> muncul halaman kosong & kop/konten tergeser turun 1 halaman).
+        // Mode "css" saja sudah cukup krn page-break-inside/after diatur lewat CSS (.doc-sec, dll).
+        pagebreak:{mode:["css"]}
       })
       .from(inner);
 
