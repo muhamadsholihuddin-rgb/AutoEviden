@@ -66,6 +66,8 @@ label.kop-slot{aspect-ratio:5/1}
 .toast.err{border-color:#f85149;color:#f85149}
 /* A4 document */
 #doc-preview{width:210mm;min-height:297mm;background:white;color:#111;padding:1.5cm 2cm;margin:0 auto;font-family:'Times New Roman',serif;line-height:1.5;box-shadow:0 24px 80px rgba(0,0,0,.6);border-radius:4px}
+/* Dipakai sementara saat generate PDF utk fitur Bagikan: margin diatur lewat opsi html2pdf, bukan padding div ini, agar tidak dobel dan konsisten di semua halaman */
+#doc-preview.export-mode{padding:0!important;box-shadow:none!important;border-radius:0!important}
 .doc-sec-title{font-weight:bold;margin-bottom:6px;text-align:left}
 .doc-sec{margin-bottom:14px;page-break-inside:avoid;break-inside:avoid}
 .doc-sec-body{margin-left:0}
@@ -79,6 +81,15 @@ label.kop-slot{aspect-ratio:5/1}
 .info-table{border-collapse:collapse;border:none;width:100%}
 .info-table td{border:none;padding-bottom:3px;vertical-align:top;line-height:1.5}
 .info-table td:first-child{width:130px;font-weight:bold}
+/* Lampiran foto: grid 2 kolom agar foto utama & pendukung berdekatan, idealnya 2 foto per halaman */
+.lampiran-grid{display:flex;flex-wrap:wrap;gap:14px;justify-content:flex-start}
+.lampiran-item{width:calc(50% - 7px);border:3px solid #e0e0e0;padding:6px;box-sizing:border-box;page-break-inside:avoid;break-inside:avoid;margin-bottom:14px}
+.lampiran-item img{width:100%;height:10.5cm;display:block;object-fit:contain;background:#fafafa}
+.lampiran-caption{font-size:.78em;margin-top:6px;font-style:normal;color:#555;text-align:center;line-height:1.4}
+@media(max-width:860px){
+  .lampiran-item{width:100%}
+  .lampiran-item img{height:auto;max-height:14cm}
+}
 @media(max-width:860px){
   #sidebar{display:none!important}
   .preview-panel{display:none}
@@ -116,9 +127,10 @@ label.kop-slot{aspect-ratio:5/1}
   .btn-gold,.btn-out,.btn-ghost{font-size:12.5px}
 }
 @media print{
-  @page{size:A4;margin:1.5cm 2cm}
-  /* Hilangkan header/footer browser (url, tanggal, jam) */
-  @page{margin-top:1.5cm;margin-bottom:1.5cm;margin-left:2cm;margin-right:2cm}
+  /* Margin halaman 1 dibuat lebih rapat agar kop surat pas & tidak menyisakan ruang kosong berlebih di atas.
+     Halaman 2 dst memakai margin standar agar tidak terlalu mepet. */
+  @page{size:A4;margin:2cm 2cm 2cm 2cm}
+  @page :first{margin-top:1cm}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   body{background:white!important;margin:0;padding:0}
   #app-shell{display:none!important}
@@ -195,6 +207,23 @@ function getDasar(rhk, f, modul, sesi) {
     9:`Panduan Komunikasi Publik Kemensos RI melalui kanal digital resmi.`
   };
   return [...base, sp[rhk.no]||sp[9]];
+}
+
+// ── CAPTION FOTO OTOMATIS (menyesuaikan RHK / sub kegiatan) ─
+function photoCaption(rhk, f, modul, sesi){
+  const desa=f.desa||"...", grp=f.kelompok||"...";
+  switch(rhk.no){
+    case 1: return `Pendampingan penyaluran bantuan sosial PKH di wilayah ${f.wilayah||"dampingan"}`;
+    case 2: return `Pelaksanaan P2K2 — ${sesi} bersama Kelompok ${grp}, Desa ${desa}`;
+    case 3: return `Verifikasi komitmen & pendampingan KPM — ${f.kegiatan||rhk.title}`;
+    case 4: return `${f.kegiatan||rhk.title}${f.ppse_nama?` — KPM a.n. ${f.ppse_nama}`:""}`;
+    case 5: return `${f.kegiatan||rhk.title} di Desa ${desa}`;
+    case 6: return `Respon kasus/pengaduan — ${f.kegiatan||rhk.title}`;
+    case 7: return `Penyusunan laporan bulanan pelaksanaan PKH`;
+    case 8: return `${f.kegiatan||rhk.title}${f.sasaran?` bersama ${f.sasaran}`:""}`;
+    case 9: return `Publikasi Berita Baik Kemensos RI`;
+    default: return f.kegiatan||rhk.title;
+  }
 }
 
 // ── NARRATIVE BUILDER ────────────────────────
@@ -627,12 +656,14 @@ function docHTML(fs){
     <!-- FOTO LAMPIRAN -->
     ${(S.f1||S.f2||S.f3)?`
     <div style="page-break-before:always;page-break-inside:avoid;break-before:always">
-      <p style="font-weight:bold;text-decoration:underline;text-transform:uppercase;letter-spacing:2px;margin-bottom:20px;text-align:center">LAMPIRAN DOKUMENTASI</p>
-      ${[S.f1,S.f2,S.f3].filter(Boolean).map((f,i)=>`
-      <div style="margin-bottom:28px;display:block;width:100%;border:3px solid #e0e0e0;padding:8px;box-sizing:border-box;page-break-inside:avoid;break-inside:avoid">
-        <img src="${f}" style="width:100%;display:block;max-height:18cm;object-fit:contain"/>
-        <p style="font-size:.8em;margin-top:8px;font-style:normal;color:#555;text-align:center">Gambar ${i+1}: Dokumentasi pelaksanaan tugas pendampingan.</p>
-      </div>`).join("")}
+      <p style="font-weight:bold;text-decoration:underline;text-transform:uppercase;letter-spacing:2px;margin-bottom:16px;text-align:center">LAMPIRAN DOKUMENTASI</p>
+      <div class="lampiran-grid">
+        ${[S.f1,S.f2,S.f3].filter(Boolean).map((imgSrc,i)=>`
+        <div class="lampiran-item">
+          <img src="${imgSrc}"/>
+          <p class="lampiran-caption">Gambar ${i+1}. ${escHtml(photoCaption(rhk,f,modul,sesi))}.</p>
+        </div>`).join("")}
+      </div>
     </div>`:""}
   </div>`;
 }
@@ -651,19 +682,22 @@ window.exportWord=()=>{
 
 // ── FORMAT NAMA FILE ─────────────────────────
 function buildFileName(ext){
+  const HARI=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
   const BULAN=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
   const nama=(S.form.nama||"Pendamping").trim();
   const rhkNo=S.rhk.no;
   // parse tanggal kegiatan (format YYYY-MM-DD)
-  let tglStr="";
+  let hariStr="", tglStr="";
   if(S.form.tgl_kegiatan){
     const [y,m,d]=S.form.tgl_kegiatan.split("-").map(Number);
+    hariStr=HARI[new Date(y,m-1,d).getDay()];
     tglStr=`${d} ${BULAN[m-1]} ${y}`;
   }
   // bersihkan karakter tidak valid untuk nama file
   const clean=s=>s.replace(/[/\\:*?"<>|]/g,"");
-  return clean(`${nama}_RHK ${rhkNo}_${tglStr}.${ext}`);
+  return clean(`${nama}_RHK ${rhkNo}_${hariStr}_${tglStr}.${ext}`);
 }
+function buildFileNameNoExt(){ return buildFileName("x").replace(/\.x$/,""); }
 
 // ── PRINT PDF ────────────────────────────────
 window.exportPDF=()=>{
@@ -694,15 +728,25 @@ window.shareReport=async()=>{
 
   const finish=()=>{ S.shareLoading=false; render(); };
   const fileName=buildFileName("pdf");
-  const judul=`Laporan RHK ${S.rhk.no} — ${S.form.nama||"Pendamping PKH"}`;
+  const judul=buildFileNameNoExt(); // dipakai juga sbg title share & judul metadata PDF, agar nama file konsisten di semua aplikasi (termasuk Google Drive)
+
+  // Beberapa aplikasi (mis. Google Drive) menamai file hasil share berdasarkan
+  // document.title / metadata judul PDF, bukan hanya File.name — samakan semuanya.
+  const prevTitle=document.title;
+  document.title=judul;
+  // Nonaktifkan padding bawaan #doc-preview saat capture, karena margin halaman
+  // pada file yang dibagikan diatur lewat opsi "margin" html2pdf di bawah (seragam per halaman).
+  inner.classList.add("export-mode");
 
   try{
     if(typeof html2pdf==="undefined") throw new Error("html2pdf tidak tersedia");
 
     // Render ke PDF blob dari elemen pratinjau A4
+    // margin [atas,kiri,bawah,kanan] mm — seragam di semua halaman (batasan teknis html2pdf/html2canvas
+    // yang men-slice satu canvas panjang, sehingga margin berbeda per-halaman tidak didukung di jalur ini).
     const worker=html2pdf()
       .set({
-        margin:0,
+        margin:[10,15,15,15],
         filename:fileName,
         image:{type:"jpeg",quality:0.95},
         html2canvas:{scale:2,useCORS:true,backgroundColor:"#ffffff"},
@@ -718,12 +762,12 @@ window.shareReport=async()=>{
       await navigator.share({
         files:[file],
         title:judul,
-        text:`${judul} — dibuat dengan AutoReport Pro.`
+        text:judul
       });
       showToast("Laporan berhasil dibagikan ✓");
     } else if(navigator.share){
       // Perangkat tidak mendukung share file — bagikan sebagai teks & tetap unduh PDF-nya
-      await navigator.share({ title:judul, text:`${judul} — dibuat dengan AutoReport Pro.` });
+      await navigator.share({ title:judul, text:judul });
       const a=document.createElement("a"); a.href=URL.createObjectURL(pdfBlob); a.download=fileName;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       showToast("PDF diunduh — silakan bagikan manual dari folder unduhan");
@@ -734,10 +778,11 @@ window.shareReport=async()=>{
       showToast("Perangkat tidak mendukung fitur Bagikan — PDF diunduh");
     }
   }catch(err){
-    if(err && err.name==="AbortError"){ finish(); return; } // user membatalkan share sheet
-    console.error(err);
-    showToast("Gagal membagikan laporan, coba lagi",true);
+    if(err && err.name==="AbortError"){ /* user membatalkan share sheet */ }
+    else{ console.error(err); showToast("Gagal membagikan laporan, coba lagi",true); }
   }
+  document.title=prevTitle;
+  inner.classList.remove("export-mode");
   finish();
 };
 
