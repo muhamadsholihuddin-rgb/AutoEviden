@@ -681,10 +681,22 @@ window.shareReport=async()=>{
 
   const finish=()=>{ S.shareLoading=false; render(); };
   const fileName=buildFileName("pdf");
-  const judul=`Laporan RHK ${S.rhk.no} — ${S.form.nama||"Pendamping PKH"}`;
+  const fileBase=fileName.replace(/\.pdf$/i,"");
+  // PENTING: beberapa aplikasi (mis. Google Drive) menamai file dari field
+  // "title" pesan share, BUKAN dari nama file PDF-nya. Judul disamakan
+  // dengan nama file agar hasilnya konsisten di semua aplikasi tujuan.
+  const judul=fileBase;
+  const caption=`Laporan RHK ${S.rhk.no} — ${S.form.nama||"Pendamping PKH"}`;
 
   try{
     if(typeof html2pdf==="undefined") throw new Error("html2pdf tidak tersedia");
+
+    // Paksa lebar capture setara A4 (210mm) dalam px, TIDAK mengikuti lebar layar HP.
+    // Ini memperbaiki bug html2canvas di HP yang memotong sisi kanan dokumen
+    // & membuat margin antar halaman tidak konsisten (default-nya ia memakai
+    // window.innerWidth layar, yang jauh lebih sempit dari 210mm).
+    const A4_PX = Math.round(210 * 96 / 25.4); // ≈ 794px @96dpi
+    const fullHeight = Math.max(inner.scrollHeight, inner.offsetHeight);
 
     // Render ke PDF blob dari elemen pratinjau A4
     const worker=html2pdf()
@@ -692,7 +704,17 @@ window.shareReport=async()=>{
         margin:0,
         filename:fileName,
         image:{type:"jpeg",quality:0.95},
-        html2canvas:{scale:2,useCORS:true,backgroundColor:"#ffffff"},
+        html2canvas:{
+          scale:2,
+          useCORS:true,
+          backgroundColor:"#ffffff",
+          width:A4_PX,
+          windowWidth:A4_PX,
+          height:fullHeight,
+          windowHeight:fullHeight,
+          scrollX:0,
+          scrollY:0
+        },
         jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
         pagebreak:{mode:["css","legacy"]}
       })
@@ -705,12 +727,12 @@ window.shareReport=async()=>{
       await navigator.share({
         files:[file],
         title:judul,
-        text:`${judul} — dibuat dengan AutoReport Pro.`
+        text:`${caption} — dibuat dengan AutoReport Pro.`
       });
       showToast("Laporan berhasil dibagikan ✓");
     } else if(navigator.share){
       // Perangkat tidak mendukung share file — bagikan sebagai teks & tetap unduh PDF-nya
-      await navigator.share({ title:judul, text:`${judul} — dibuat dengan AutoReport Pro.` });
+      await navigator.share({ title:judul, text:`${caption} — dibuat dengan AutoReport Pro.` });
       const a=document.createElement("a"); a.href=URL.createObjectURL(pdfBlob); a.download=fileName;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       showToast("PDF diunduh — silakan bagikan manual dari folder unduhan");
