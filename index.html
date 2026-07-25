@@ -740,16 +740,16 @@ window.shareReport=async()=>{
   try{
     if(typeof html2pdf==="undefined") throw new Error("html2pdf tidak tersedia");
 
-    // Render ke PDF blob dari elemen pratinjau A4
-    // margin diset 0 -> margin PDF sepenuhnya berasal dari padding CSS #doc-preview (1.5cm 2cm)
-    // windowWidth dipaksa = lebar asli #doc-preview, agar html2canvas TIDAK mengikuti lebar jendela
-    // browser/HP saat ini (default-nya begitu) — itu penyebab sisi kanan halaman selalu terpotong.
+    // windowWidth & windowHeight dipaksa = ukuran asli #doc-preview (bukan ukuran jendela browser/HP saat ini).
+    // Sebelumnya cuma windowWidth+width yang diisi -> windowHeight ikut default ke tinggi jendela (window.innerHeight)
+    // yang jauh lebih pendek dari #doc-preview yang panjang (banyak halaman), sehingga capture-nya gagal/rusak
+    // dan proses Bagikan error. Skrng windowWidth+windowHeight dipasangkan agar capture selalu utuh & konsisten.
     const worker=html2pdf()
       .set({
         margin:0,
         filename:fileName,
         image:{type:"jpeg",quality:0.95},
-        html2canvas:{scale:2,useCORS:true,backgroundColor:"#ffffff",windowWidth:inner.scrollWidth,width:inner.scrollWidth},
+        html2canvas:{scale:2,useCORS:true,backgroundColor:"#ffffff",windowWidth:inner.scrollWidth,windowHeight:inner.scrollHeight},
         jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
         pagebreak:{mode:["css","legacy"]}
       })
