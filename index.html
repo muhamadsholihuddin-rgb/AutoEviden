@@ -290,6 +290,8 @@ let S = {
   fontSize: 11.5,
   pdfLoading: false,
   shareLoading: false,
+  geminiKey: "",
+  aiLoading: {},
   sidebar: true,
   profileGate: true,
   villages: [], // [{nama:"Desa A", kelompok:["Kelompok 1", ...]}]
@@ -395,6 +397,19 @@ const inp = (label,key,type="text",disabled=false) =>
 const ta = (label,key,rows=5) =>
   `<div><label class="lbl">${label}</label><textarea rows="${rows}" data-key="${key}" class="form-ta">${escHtml(S.form[key]||"")}</textarea></div>`;
 
+const taAI = (label,key,rows,subjudul) => {
+  const loading = !!(S.aiLoading && S.aiLoading[key]);
+  return `<div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px">
+      <label class="lbl" style="margin-bottom:0">${label}</label>
+      <button type="button" class="btn-ghost" style="padding:3px 9px;font-size:10px;gap:4px" onclick="generateNarasiAI('${key}',${JSON.stringify(subjudul)})" ${loading?"disabled":""} title="Generate narasi bagian ini dengan AI (Gemini)">
+        ${loading?`<span class="spin-ico" style="width:11px;height:11px;display:inline-flex">${IC.spin}</span> Menyusun…`:`✨ AI`}
+      </button>
+    </div>
+    <textarea rows="${rows}" data-key="${key}" class="form-ta">${escHtml(S.form[key]||"")}</textarea>
+  </div>`;
+};
+
 const sel = (label,key,opts) =>
   `<div><label class="lbl">${label}</label><div class="select-wrap"><select data-key="${key}" class="form-sel">${opts.map(([v,l])=>`<option value="${escAttr(v)}" ${S.form[key]===v?'selected':''}>${escHtml(l)}</option>`).join("")}</select></div></div>`;
 
@@ -463,6 +478,16 @@ function loadVillages(){
   }catch(e){}
 }
 loadVillages();
+
+// ── GEMINI API KEY (localStorage, per perangkat) ─
+function saveGeminiKey(v){
+  S.geminiKey=v||"";
+  try{ v?localStorage.setItem("autoreport_gemini_key",v):localStorage.removeItem("autoreport_gemini_key"); }catch(e){}
+}
+function loadGeminiKey(){
+  try{ S.geminiKey=localStorage.getItem("autoreport_gemini_key")||""; }catch(e){}
+}
+loadGeminiKey();
 
 function ensureCurrentDesaKelompok(){
   // Pastikan f.desa & f.kelompok valid terhadap daftar desa yang tersimpan
@@ -861,6 +886,21 @@ function renderProfileGate(){
         </div>
       </div>
 
+      <!-- GEMINI API KEY -->
+      <div class="card">
+        <div class="sec-hd">✨ Generate Narasi dengan AI (Gemini)</div>
+        <div class="fld">
+          <div>
+            <label class="lbl">Gemini API Key</label>
+            <input type="password" class="gemini-key-inp" value="${escAttr(S.geminiKey)}" placeholder="Tempel API Key Gemini Anda di sini"/>
+          </div>
+          <p style="font-size:10px;color:var(--txm);line-height:1.6">
+            API Key ini hanya tersimpan di perangkat Anda sendiri (tidak dikirim ke siapa pun selain Google), dan dipakai untuk tombol ✨ AI di tiap kotak Narasi Laporan. Dapatkan API Key gratis di
+            <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--gold)">aistudio.google.com/apikey</a>.
+          </p>
+        </div>
+      </div>
+
       <button class="btn-gold" style="width:100%;justify-content:center;padding:11px" onclick="completeProfileSetup()">${ico("chk",14)} ${firstTime?"Simpan & Mulai":"Simpan Pengaturan"}</button>
       <p style="font-size:10px;color:var(--txm);text-align:center">Nama dan NIP wajib diisi. Anda dapat mengubah pengaturan ini kapan saja.</p>
     </div>
@@ -877,6 +917,7 @@ function renderProfileGate(){
   document.querySelectorAll(".kelompok-inp").forEach(el=>{
     el.addEventListener("input",e=>updateKelompok(parseInt(e.target.dataset.vidx),parseInt(e.target.dataset.kidx),e.target.value));
   });
+  document.querySelector(".gemini-key-inp")?.addEventListener("input",e=>saveGeminiKey(e.target.value));
 }
 
 // ── MAIN RENDER ──────────────────────────────
@@ -1041,10 +1082,10 @@ function render(){
               <button class="btn-ghost" onclick="refill()">${ico("ref",12)} Auto-isi Ulang</button>
             </div>
             <div class="fld">
-              ${ta("Pendahuluan Umum","umum",4)}
-              ${ta("Maksud & Tujuan","tujuan",5)}
-              ${ta("Narasi Kegiatan","narasi",5)}
-              ${ta("Hasil yang Dicapai","hasil",5)}
+              ${taAI("Pendahuluan Umum","umum",4,"Pendahuluan Umum")}
+              ${taAI("Maksud & Tujuan","tujuan",5,"Maksud dan Tujuan")}
+              ${taAI("Narasi Kegiatan","narasi",5,"Narasi Kegiatan yang Dilaksanakan")}
+              ${taAI("Hasil yang Dicapai","hasil",5,"Hasil yang Dicapai")}
               <div class="divider"></div>
               <p class="lbl" style="color:var(--txm)">Dasar Kegiatan (Auto per RHK)</p>
               <div style="background:#0d1117;border:1px solid var(--bd);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">
@@ -1167,6 +1208,69 @@ function render(){
 
 window.refill=()=>{ _narasiManual=false; autoNarrative(); render(); showToast("Narasi berhasil diperbarui ✓"); };
 window.pickRHK=(id)=>{ const r=RHK.find(x=>x.id===id); S.rhk=r; S.form.kegiatan=r.options[0]; _narasiManual=false; autoNarrative(); S.page="edit"; render(); };
+
+// ── GENERATE NARASI PER-BAGIAN DENGAN AI (GEMINI) ──
+window.generateNarasiAI = async (key, subjudul) => {
+  if(!S.geminiKey || !S.geminiKey.trim()){
+    showToast("Isi dulu Gemini API Key di menu Pengaturan",true);
+    return;
+  }
+  if(!S.aiLoading) S.aiLoading={};
+  if(S.aiLoading[key]) return; // sudah diproses, jangan dobel klik
+
+  const f=S.form, rhk=S.rhk;
+  const konteks=[
+    `Jenis RHK: RHK ${rhk.no} — ${rhk.title} (${rhk.sub})`,
+    `Sub-kegiatan yang dipilih: ${f.kegiatan||"-"}`,
+    rhk.no===2?`Modul & Sesi P2K2: ${S.modul} — ${S.sesi}`:"",
+    `Kelompok dampingan: ${f.kelompok||"-"}`,
+    `Desa dampingan: ${f.desa||"-"}`,
+    `Wilayah tugas: ${f.wilayah||"-"}`,
+    `Lokasi pelaksanaan: ${f.tempat||"-"}`,
+    `Tanggal kegiatan: ${toDate(f.tgl_kegiatan)||f.tgl_kegiatan||"-"}`,
+    f.sasaran?`Sasaran/pihak terkait: ${f.sasaran}`:""
+  ].filter(Boolean).join("\n");
+
+  const prompt=`Kamu membantu ASN PPPK Pendamping Sosial menyusun Laporan Harian RHK Program Keluarga Harapan (PKH) Kementerian Sosial RI.
+
+Tuliskan HANYA isi paragraf/poin untuk bagian laporan berjudul "${subjudul}", relevan dan konsisten dengan konteks kegiatan di bawah.
+Ketentuan:
+- Bahasa Indonesia formal gaya birokrasi pemerintahan, sesuai konteks program PKH.
+- Langsung isi kontennya saja — tanpa basa-basi pembuka/penutup, tanpa mengulang judul bagian, tanpa tanda kutip, tanpa markdown.
+- Jika bagian ini secara alami berbentuk daftar (mis. "Maksud dan Tujuan"), tulis 3 poin bernomor format persis "1. ...\\n2. ...\\n3. ..." (baris baru antar poin).
+- Jika bagian ini berbentuk narasi (mis. "Pendahuluan Umum", "Narasi Kegiatan", "Hasil yang Dicapai"), tulis 1 paragraf padat (4-6 kalimat).
+
+Konteks kegiatan:
+${konteks}`;
+
+  S.aiLoading[key]=true; render();
+  try{
+    const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(S.geminiKey.trim())}`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt}]}]})
+    });
+    const data=await resp.json();
+    if(!resp.ok) throw new Error(data?.error?.message || `Gemini API error (${resp.status})`);
+    const text=(data?.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("").trim();
+    if(!text) throw new Error("Respons AI kosong, coba lagi");
+
+    S.form[key]=text;
+    _narasiManual=true; // supaya tidak ditimpa autoNarrative()
+    const el=document.querySelector(`.form-ta[data-key="${key}"]`);
+    if(el) el.value=text;
+    if(S.page==="preview"){
+      const prev=document.getElementById("doc-preview");
+      if(prev){ const tmp=document.createElement("div"); tmp.innerHTML=docHTML(S.fontSize); const nd=tmp.firstElementChild; if(nd) prev.replaceWith(nd); }
+    }
+    showToast("Narasi AI berhasil dibuat ✓");
+  }catch(err){
+    console.error("Gemini generate error:",err);
+    showToast(err.message||"Gagal generate narasi AI, coba lagi",true);
+  }
+  S.aiLoading[key]=false;
+  render();
+};
 
 // ── PWA: daftarkan service worker (offline-ready, wajib untuk build APK) ──
 if("serviceWorker" in navigator){
