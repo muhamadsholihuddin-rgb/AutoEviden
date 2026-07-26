@@ -402,7 +402,7 @@ const taAI = (label,key,rows,subjudul) => {
   return `<div>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px">
       <label class="lbl" style="margin-bottom:0">${label}</label>
-      <button type="button" class="btn-ghost" style="padding:3px 9px;font-size:10px;gap:4px" onclick="generateNarasiAI('${key}',${JSON.stringify(subjudul)})" ${loading?"disabled":""} title="Generate narasi bagian ini dengan AI (Gemini)">
+      <button type="button" class="btn-ghost" style="padding:3px 9px;font-size:10px;gap:4px" onclick="generateNarasiAI('${key}',${escAttr(JSON.stringify(subjudul))})" ${loading?"disabled":""} title="Generate narasi bagian ini dengan AI (Gemini)">
         ${loading?`<span class="spin-ico" style="width:11px;height:11px;display:inline-flex">${IC.spin}</span> Menyusun…`:`✨ AI`}
       </button>
     </div>
