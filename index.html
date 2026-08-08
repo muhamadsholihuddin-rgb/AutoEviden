@@ -973,9 +973,8 @@ function renderProfileGate(){
             return `
           <div style="background:#0d1117;border:1px solid var(--bd);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px">
             <div style="display:flex;gap:8px;align-items:center">
-              <div style="flex:1">
-                <button onclick="toggleVillageExpand(${vi})" style="width:100%;text-align:left;background:transparent;border:1px solid var(--bd2);border-radius:8px;padding:9px 12px;color:var(--tx);cursor:pointer;font-size:12px;font-family:inherit;transition:border-color .15s;display:flex;justify-content:space-between;align-items:center;hover-state: true" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--bd2)'">${escHtml(v.nama)}<span style="color:var(--txm);font-size:14px">${isExpanded?"▼":"▶"}</span></button>
-              </div>
+              <input type="text" class="village-name-inp" data-vidx="${vi}" value="${escAttr(v.nama)}" placeholder="Nama Desa" style="flex:1"/>
+              <button onclick="toggleVillageExpand(${vi})" style="padding:9px;flex-shrink:0;background:transparent;border:1px solid var(--bd2);border-radius:8px;color:var(--txm);cursor:pointer" title="${isExpanded?"Sembunyikan kelompok":"Lihat kelompok"}">${isExpanded?"▼":"▶"}</button>
               <button class="btn-out" style="padding:9px;color:#f85149;border-color:#f85149;flex-shrink:0" onclick="removeVillage(${vi})" title="Hapus Desa">${ico("trash",13)}</button>
             </div>
             ${isExpanded?`
