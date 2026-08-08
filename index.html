@@ -65,9 +65,9 @@ label.kop-slot{aspect-ratio:5/1}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surf);border:1px solid var(--goldBd);color:var(--gold);padding:10px 22px;border-radius:99px;font-size:12px;font-weight:600;z-index:999;display:flex;align-items:center;gap:8px;box-shadow:0 8px 32px rgba(0,0,0,.5);animation:fadein .22s ease;white-space:nowrap}
 .toast.err{border-color:#f85149;color:#f85149}
 /* A4 document */
-#doc-preview{width:210mm;min-height:297mm;background:white;color:#111;padding:2cm;margin:0 auto;font-family:'Times New Roman',serif;line-height:1.5;box-shadow:0 24px 80px rgba(0,0,0,.6);border-radius:4px}
+#doc-preview{width:210mm;min-height:297mm;background:white;color:#111;padding:1.5cm 2cm;margin:0 auto;font-family:'Times New Roman',serif;line-height:1.5;box-shadow:0 24px 80px rgba(0,0,0,.6);border-radius:4px}
 /* Margin PDF (Bagikan) sekarang mengikuti padding bawaan div ini (1.5cm 2cm) — opsi margin html2pdf diset 0 */
-#doc-preview.export-mode{box-shadow:none!important;border-radius:0!important;padding-top:0!important;padding-bottom:0!important}
+#doc-preview.export-mode{box-shadow:none!important;border-radius:0!important}
 .doc-sec-title{font-weight:bold;margin-bottom:6px;text-align:left}
 .doc-sec{margin-bottom:14px;page-break-inside:avoid;break-inside:avoid}
 .doc-sec-body{margin-left:0}
@@ -127,8 +127,10 @@ label.kop-slot{aspect-ratio:5/1}
   .btn-gold,.btn-out,.btn-ghost{font-size:12.5px}
 }
 @media print{
-  /* Margin 2cm rata di semua sisi & semua halaman (termasuk halaman 1) — konsisten dgn padding #doc-preview di layar & margin PDF hasil Bagikan. */
-  @page{size:A4;margin:2cm}
+  /* Margin halaman 1 dibuat lebih rapat agar kop surat pas & tidak menyisakan ruang kosong berlebih di atas.
+     Halaman 2 dst memakai margin standar agar tidak terlalu mepet. */
+  @page{size:A4;margin:2cm 2cm 2cm 2cm}
+  @page :first{margin-top:1cm}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   body{background:white!important;margin:0;padding:0}
   #app-shell{display:none!important}
@@ -590,7 +592,7 @@ function ensureCurrentDesaKelompok(){
 ensureCurrentDesaKelompok();
 
 window.addVillage=()=>{
-  S.villages.push({nama:`Desa ${S.villages.length+1}`, kelompok:["Kelompok 1","Kelompok 2","Kelompok 3","Kelompok 4","Kelompok 5"]});
+  S.villages.push({nama:`Desa ${S.villages.length+1}`, kelompok:["Kelompok 1"]});
   saveVillages(); render();
 };
 window.removeVillage=(idx)=>{
@@ -603,7 +605,6 @@ window.updateVillageName=(idx,val)=>{
 };
 window.addKelompok=(vIdx)=>{
   const v=S.villages[vIdx];
-  if(v.kelompok.length>=6){ showToast("Maksimal 6 kelompok per desa",true); return; }
   v.kelompok.push(`Kelompok ${v.kelompok.length+1}`);
   saveVillages(); render();
 };
@@ -674,7 +675,7 @@ function docHTML(fs){
     <!-- KOP -->
     <div style="text-align:center;margin-bottom:14px">
       ${S.kop
-        ? `<img src="${S.kop}" style="width:100%;display:block"/><div style="border-bottom:3px double black;margin-top:6px"></div>`
+        ? `<img src="${S.kop}" data-role="kop" style="width:100%;display:block"/><div style="border-bottom:3px double black;margin-top:6px"></div>`
         : `<div style="border-bottom:2px solid black;padding-bottom:8px"><p style="font-size:1.3em;font-weight:bold;text-transform:uppercase;margin-bottom:2px;line-height:1.5">Kementerian Sosial Republik Indonesia</p><p style="font-size:.95em;font-weight:bold;text-transform:uppercase;line-height:1.5">Direktorat Jenderal Perlindungan dan Jaminan Sosial</p><p style="font-size:.85em;font-weight:bold;text-transform:uppercase;line-height:1.5">Direktorat Perlindungan Sosial Non Kebencanaan</p></div>`
       }
     </div>
@@ -762,7 +763,7 @@ function docHTML(fs){
         <p>${escHtml(f.kota)}, ${escHtml(f.tgl_laporan)}</p>
         <p style="font-weight:bold;margin:8px 0">${escHtml(f.jabatan)}</p>
         <div style="height:90px;display:flex;align-items:center;justify-content:center;margin:4px 0">
-          ${S.ttd?`<img src="${S.ttd}" style="max-height:90px;max-width:160px;object-fit:contain"/>`:`<div style="height:90px"></div>`}
+          ${S.ttd?`<img src="${S.ttd}" data-role="ttd" style="max-height:90px;max-width:160px;object-fit:contain"/>`:`<div style="height:90px"></div>`}
         </div>
         <p style="font-weight:bold;text-decoration:underline;text-transform:uppercase">${escHtml(f.nama)}</p>
         <p>NIP. ${escHtml(f.nip)}</p>
@@ -776,7 +777,7 @@ function docHTML(fs){
       <div class="lampiran-grid">
         ${[S.f1,S.f2,S.f3].filter(Boolean).map((imgSrc,i)=>`
         <div class="lampiran-item">
-          <img src="${imgSrc}"/>
+          <img src="${imgSrc}" data-role="lampiran"/>
           <p class="lampiran-caption">Gambar ${i+1}. ${escHtml(photoCaption(rhk,f,modul,sesi))}.</p>
         </div>`).join("")}
       </div>
@@ -789,7 +790,27 @@ window.exportWord=()=>{
   const name=`Laporan_RHK${S.rhk.no}_${S.form.nama}_${S.form.tgl_kegiatan}.doc`;
   const inner=document.getElementById("doc-preview");
   if(!inner){showToast("Buka tab Pratinjau dulu!",true);return;}
-  const html=`<html><head><meta charset="utf-8"><style>@page{size:A4;margin:2cm}body{font-family:'Times New Roman',serif;font-size:${S.fontSize}pt;line-height:1.5}table{width:100%;border-collapse:collapse}td,th{border:1px solid black;padding:6px;vertical-align:top}p{margin-bottom:6pt}</style></head><body>${inner.outerHTML}</body></html>`;
+
+  // Word (mso HTML) sering mengabaikan width:% pada <img> dan malah memakai resolusi asli
+  // foto (bisa ribuan px dari kamera HP) — hasilnya kop/ttd/foto lampiran "melebar" jauh
+  // melampaui halaman. Di sini ukurannya dikunci pakai lebar absolut (cm) yang pas dengan
+  // lebar konten A4 (margin halaman 1.5cm atas-bawah / 2cm kiri-kanan → konten 17cm),
+  // sehingga selalu sama persis dengan tampilan Pratinjau, apa pun resolusi foto aslinya.
+  const clone=inner.cloneNode(true);
+  clone.querySelectorAll('img[data-role="kop"]').forEach(img=>{
+    img.setAttribute("width","642"); img.removeAttribute("height");
+    img.style.cssText="width:17cm;max-width:17cm;height:auto;display:block";
+  });
+  clone.querySelectorAll('img[data-role="ttd"]').forEach(img=>{
+    img.setAttribute("width","170"); img.removeAttribute("height");
+    img.style.cssText="width:4.5cm;max-width:4.5cm;height:auto;display:block;margin:0 auto";
+  });
+  clone.querySelectorAll('img[data-role="lampiran"]').forEach(img=>{
+    img.setAttribute("width","302"); img.removeAttribute("height");
+    img.style.cssText="width:8cm;max-width:8cm;height:auto;display:block;margin:0 auto";
+  });
+
+  const html=`<html><head><meta charset="utf-8"><style>@page{size:A4;margin:1.5cm 2cm}body{font-family:'Times New Roman',serif;font-size:${S.fontSize}pt;line-height:1.5}table{width:100%;border-collapse:collapse}td,th{border:1px solid black;padding:6px;vertical-align:top}p{margin-bottom:6pt}</style></head><body>${clone.outerHTML}</body></html>`;
   const blob=new Blob(['\ufeff',html],{type:"application/msword"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
@@ -868,9 +889,7 @@ window.shareReport=async()=>{
   // document.title / metadata judul PDF, bukan hanya File.name — samakan semuanya.
   const prevTitle=document.title;
   document.title=judul;
-  // export-mode: hilangkan shadow/radius, dan hilangkan padding atas-bawah div saat capture —
-  // margin atas-bawah sekarang jadi tanggung jawab opsi margin html2pdf (diulang tiap halaman),
-  // bukan dibakar jadi padding di satu gambar panjang (itu penyebab margin hilang di halaman tengah dokumen).
+  // export-mode: hilangkan shadow/radius saat capture (padding div dibiarkan apa adanya, jadi margin PDF)
   inner.classList.add("export-mode");
 
   try{
@@ -890,7 +909,7 @@ window.shareReport=async()=>{
     // (penyebab umum margin PDF jadi berantakan/foto terpotong).
     const worker=html2pdf()
       .set({
-        margin:[20,0],
+        margin:0,
         filename:fileName,
         image:{type:"jpeg",quality:0.95},
         html2canvas:{scale:2,useCORS:true,allowTaint:true,backgroundColor:"#ffffff",scrollX:0,scrollY:0,windowWidth:inner.scrollWidth,windowHeight:inner.scrollHeight},
@@ -976,7 +995,7 @@ function renderProfileGate(){
           <button class="btn-ghost" onclick="addVillage()">${ico("plus",12)} Tambah Desa</button>
         </div>
         <div class="fld">
-          ${S.villages.length===0?`<p style="font-size:11px;color:var(--txm);line-height:1.6">Belum ada desa dampingan. Klik <b>Tambah Desa</b> untuk menambahkan desa beserta kelompok binaan (5–6 kelompok per desa). Desa &amp; kelompok ini akan muncul sebagai pilihan dropdown di menu Isi Form.</p>`:""}
+          ${S.villages.length===0?`<p style="font-size:11px;color:var(--txm);line-height:1.6">Belum ada desa dampingan. Klik <b>Tambah Desa</b> untuk menambahkan desa, lalu klik <b>Tambah Kelompok</b> satu per satu sesuai jumlah kelompok binaan (tidak terbatas). Desa &amp; kelompok ini akan muncul sebagai pilihan dropdown di menu Isi Form.</p>`:""}
           ${S.villages.map((v,vi)=>`
           <div style="background:#0d1117;border:1px solid var(--bd);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px">
             <div style="display:flex;gap:8px;align-items:flex-end">
@@ -984,13 +1003,13 @@ function renderProfileGate(){
               <button class="btn-out" style="padding:9px;color:#f85149;border-color:#f85149" onclick="removeVillage(${vi})" title="Hapus Desa">${ico("trash",13)}</button>
             </div>
             <div style="display:flex;flex-direction:column;gap:6px">
-              <label class="lbl">Kelompok (${v.kelompok.length}/6)</label>
+              <label class="lbl">Kelompok (${v.kelompok.length})</label>
               ${v.kelompok.map((k,ki)=>`
               <div style="display:flex;gap:6px">
                 <input type="text" class="kelompok-inp" data-vidx="${vi}" data-kidx="${ki}" value="${escAttr(k)}" style="flex:1"/>
                 <button class="btn-out" style="padding:9px" onclick="removeKelompok(${vi},${ki})" title="Hapus Kelompok">${ico("trash",12)}</button>
               </div>`).join("")}
-              <button class="btn-ghost" style="align-self:flex-start" onclick="addKelompok(${vi})" ${v.kelompok.length>=6?"disabled":""}>${ico("plus",12)} Tambah Kelompok</button>
+              <button class="btn-ghost" style="align-self:flex-start" onclick="addKelompok(${vi})">${ico("plus",12)} Tambah Kelompok</button>
             </div>
           </div>`).join("")}
         </div>
@@ -1069,8 +1088,8 @@ function render(){
           <span style="font-size:11px;color:var(--gold);font-weight:700;min-width:28px">${S.fontSize}pt</span>
         </div>
         <button class="btn-out" onclick="openProfileGate()" title="Pengaturan" style="padding:9px">${ico("gear",16)}</button>
-        <!-- Export Word & PDF disembunyikan (fungsi tetap tersedia), cukup gunakan tombol Bagikan -->
-        <button class="btn-out" onclick="exportWord()" style="display:none">${ico("word")} Word</button>
+        <!-- Export PDF native disembunyikan — cukup gunakan Bagikan (PDF) & Simpan Word -->
+        <button class="btn-out" onclick="exportWord()">${ico("word")} Simpan Word</button>
         <button class="btn-gold" onclick="shareReport()" title="Bagikan Laporan" ${S.shareLoading?"disabled":""}>
           ${S.shareLoading?`<span class="spin-ico">${IC.spin}</span>`:ico("share",14)} Bagikan
         </button>
@@ -1102,7 +1121,7 @@ function render(){
           ${sideTab("narasi","Narasi","txt")}
           <div class="divider"></div>
           <div style="padding:0 2px;display:flex;flex-direction:column;gap:8px">
-            <button class="btn-out" onclick="exportWord()" style="width:100%;justify-content:center;display:none">${ico("word",13)} Export Word</button>
+            <button class="btn-out" onclick="exportWord()" style="width:100%;justify-content:center">${ico("word",13)} Simpan Word</button>
             <button class="btn-gold" onclick="shareReport()" style="width:100%;justify-content:center" ${S.shareLoading?"disabled":""}>
               ${S.shareLoading?`<span class="spin-ico">${IC.spin}</span>`:ico("share",14)} ${S.shareLoading?"Menyiapkan…":"Bagikan"}
             </button>
@@ -1357,7 +1376,7 @@ function render(){
               <p style="font-size:10px;color:var(--txm);margin-top:2px">RHK ${rhk.no}: ${rhk.title} · ${S.fontSize}pt</p>
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap">
-              <button class="btn-out" onclick="exportWord()" style="display:none">${ico("word")} Word</button>
+              <button class="btn-out" onclick="exportWord()">${ico("word")} Simpan Word</button>
               <button class="btn-gold" onclick="shareReport()" ${S.shareLoading?"disabled":""}>
                 ${S.shareLoading?`<span class="spin-ico">${IC.spin}</span> Menyiapkan…`:`${ico("share")} Bagikan`}
               </button>
